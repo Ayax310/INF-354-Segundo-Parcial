@@ -5,64 +5,78 @@ Created on Sat Dic  12 10:45:15 2020
 @author: Ayax
 """
 
-import array
 import random
 
-import numpy
+modelEnd = [6,18,1,6,20,22,28,15,5,19] 
+largeIndividual = 10 
 
-from deap import algorithms
-from deap import base
-from deap import creator
-from deap import tools
+num = 5 #Cantidad de individuos
+generation = 300 #Generaciones
+pressure = 3 #individual>2
+mutation_chance = 0.2
 
-# Maximizar=1 o minimizar=-1
-creator.create("FitnessMax", base.Fitness, weights=(1.0,))
-# Tipo individuo
-creator.create("Individual", array.array, typecode='b', fitness=creator.FitnessMax)
-# operaciones
-toolbox = base.Toolbox()
+def individual(min, max):
+    return[random.randint(min, max) for i in range(largeIndividual)]
 
-# funcion que se llena el individuo
-# Attribute generator
-toolbox.register("attr_bool", random.randint, 0, 1)
+def newPopulation():
+    return [individual(0,50) for i in range(num)]
 
-# generacion del individuo y poblacion
-# Structure initializers
-toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_bool, 25)
-toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+# Funcion la que se debe cambiar en funcion a f(x)
+def functionType(individual):
+    fitness = 0
+    for i in range(len(individual)):
+        if individual[i] == modelEnd[i]:
+            fitness += 1
+    return fitness
 
-# funcion objetivo
-def evalOneMax(individual):
-    decimal = int("".join(map(str, individual)),2)
-    x = decimal
-    return ((x*x*x)+(x*x)+x),
+def selection_and_reproduction(population):
+    evaluating = [ (functionType(i), i) for i in population]
+    print("eval",evaluating)
+    evaluating = [i[1] for i in sorted(evaluating)]
+    print("eval",evaluating)
+    population = evaluating
+    selected = evaluating[(len(evaluating)-pressure):]
+    for i in range(len(population)-pressure):
+        pointChange = random.randint(1,largeIndividual-1)
+        father = random.sample(selected, 2)
+        population[i][:pointChange] = father[0][:pointChange]
+        population[i][pointChange:] = father[1][pointChange:]
+    return population
 
-# operaciones
-toolbox.register("evaluate", evalOneMax)
-toolbox.register("mate", tools.cxTwoPoint)
-toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
-toolbox.register("select", tools.selTournament, tournsize=2)
+def mutation(population):
+    for i in range(len(population)-pressure):
+        if random.random() <= mutation_chance: 
+            pointChange = random.randint(1,largeIndividual-1) 
+            new_val = random.randint(0,9) 
+            while new_val == population[i][pointChange]:
+                new_val = random.randint(0,9)
+            population[i][pointChange] = new_val
+    return population
 
-def main():
-    random.seed(64)
-    # genera la poblacion
-    pop = toolbox.population(n=100)
-    # el mejor individuo (min-max)
-    hof = tools.HallOfFame(1)
-    # estadisticas basicas
-    stats = tools.Statistics(lambda ind: ind.fitness.values)
-    stats.register("avg", numpy.mean)
-    stats.register("std", numpy.std)
-    stats.register("min", numpy.min)
-    stats.register("max", numpy.max)
-    
-    pop, log = algorithms.eaSimple(pop, toolbox, cxpb=0.5, mutpb=0.2, ngen=40, 
-                                   stats=stats, halloffame=hof, verbose=False)
-    
-    return pop, log, hof
+def funciony(data):
+    copy = []
+    for elem in data:
+        newdata = []
+        for x in elem:
+            y = (x*x*x)+(x*x)+x
+            newdata.append(y)
+        copy.append(newdata)
+    return copy
 
-if __name__ == "__main__":
-    
-    pop, log, hof = main()
-    print(log)
-    print(hof)
+# Principal
+modelEnd.sort()
+modelEnd.reverse()
+print('Inicial: ', modelEnd)
+print('Generaciones', generation)
+population = newPopulation()
+# Ordenamos descendentemente los elementos
+for p in population:
+    p.sort()
+    p.reverse()
+print("\nInicio de la población:\n%s"%(population))
+population = selection_and_reproduction(population)
+print("\nCruce:\n%s"%(population))
+y = funciony(population)
+print("\nFuncion y:\n%s" % (y))
+population = mutation(population)
+print("\nMutación:\n%s"%(population))
